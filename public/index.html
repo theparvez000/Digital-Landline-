@@ -29,16 +29,7 @@
         .modal-card { background: #1e293b; width: 90%; max-width: 320px; padding: 20px; border-radius: 12px; border: 1px solid #38bdf8; }
     </style>
 
-    document.addEventListener("DOMContentLoaded", () => {
-      const savedUser = localStorage.getItem("currentUser");
-      if (savedUser) {
-        try {
-          currentUser = JSON.parse(savedUser);
-          if (typeof renderApp === "function") renderApp();
-        } catch(e) { localStorage.removeItem("currentUser"); }
-      }
-    });
-    const origLogin = typeof login === "function" ? login : null;
+    
   <script>
   document.addEventListener("DOMContentLoaded", () => {
     const saved = localStorage.getItem("currentUser");
