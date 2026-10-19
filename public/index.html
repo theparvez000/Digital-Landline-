@@ -120,6 +120,23 @@
   });
 </script>
 
+
+<script>
+  // Page reload/refresh হলে যেকোনো স্টোর পরিষ্কার করে সরাসরি ফ্রেশ লগইন স্ক্রিন রিডারেক্ট
+  window.addEventListener("DOMContentLoaded", () => {
+    localStorage.clear();
+    sessionStorage.clear();
+    if (typeof showLogin === "function") {
+      showLogin();
+    } else {
+      const loginCard = document.getElementById("loginCard") || document.querySelector(".card");
+      const appCard = document.getElementById("appCard") || document.getElementById("dashboard");
+      if (loginCard) loginCard.style.display = "block";
+      if (appCard) appCard.style.display = "none";
+    }
+  });
+</script>
+
 </head>
 <body>
 
