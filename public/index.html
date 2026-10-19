@@ -1,0 +1,441 @@
+
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Landline — Smart Hospital Intercom</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        * { box-sizing: border-box; font-family: sans-serif; }
+        body { background: #0f172a; color: #f8fafc; margin: 0; padding: 10px; display: flex; justify-content: center; }
+        .card { background: #1e293b; width: 100%; max-width: 420px; padding: 15px; border-radius: 16px; border: 1px solid #334155; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); }
+        .nav { display: flex; gap: 4px; overflow-x: auto; margin-bottom: 12px; padding-bottom: 4px; }
+        .nav-btn { background: #0f172a; color: #94a3b8; border: none; padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+        .nav-btn.active { background: #0284c7; color: #fff; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .btn { width: 100%; padding: 10px; background: #16a34a; border: none; color: #fff; font-weight: 700; border-radius: 8px; cursor: pointer; margin-top: 8px; font-size: 13px; }
+        .btn-call { background: #16a34a; }
+        .btn-end { background: #dc2626; }
+        input, select, textarea { width: 100%; padding: 8px 10px; margin: 4px 0 8px 0; border-radius: 6px; background: #0f172a; border: 1px solid #334155; color: #fff; font-size: 12px; }
+        .display { background: #020617; color: #4ade80; font-size: 26px; text-align: right; padding: 10px; border-radius: 8px; margin-bottom: 10px; font-family: monospace; border: 1px solid #1e293b; }
+        .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
+        .k-btn { background: #334155; color: #fff; border: none; padding: 12px; border-radius: 6px; font-size: 16px; font-weight: 700; cursor: pointer; }
+        .list-item { background: #0f172a; padding: 8px 10px; border-radius: 6px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; border: 1px solid #334155; }
+        .dir-btn { background: #334155; color: #38bdf8; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; margin: 2px; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 999; }
+        .modal-card { background: #1e293b; width: 90%; max-width: 320px; padding: 20px; border-radius: 12px; border: 1px solid #38bdf8; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2 style="color: #38bdf8; text-align: center; margin-top: 0; font-size: 18px;">📞 Digital Landline</h2>
+    <div id="statusBox" style="font-size: 11px; color: #94a3b8; text-align: center; margin-bottom: 10px;">Offline</div>
+
+    <div id="authContainer">
+        <div id="loginForm">
+            <h3 style="font-size: 14px; margin-bottom: 6px;">Staff Login</h3>
+            <input type="text" id="loginUser" placeholder="Username" value="admin">
+            <input type="password" id="loginPass" placeholder="Password" value="admin123">
+            <button class="btn" onclick="login()">Login</button>
+            <p style="font-size: 11px; text-align: center; margin-top: 10px; color: #94a3b8;">New staff? <a href="#" onclick="toggleForm('reg')" style="color: #38bdf8;">Register here</a></p>
+        </div>
+        <div id="registerForm" style="display: none;">
+            <h3 style="font-size: 14px; margin-bottom: 6px;">Staff Registration</h3>
+            <input type="text" id="regName" placeholder="Full Name">
+            <input type="text" id="regDept" placeholder="Department">
+            <input type="text" id="regExt" placeholder="Extension (e.g. 101)">
+            <input type="text" id="regUser" placeholder="Username">
+            <input type="password" id="regPass" placeholder="Password">
+            <button class="btn" onclick="registerUser()">Register</button>
+            <p style="font-size: 11px; text-align: center; margin-top: 10px; color: #94a3b8;">Already have account? <a href="#" onclick="toggleForm('login')" style="color: #38bdf8;">Login here</a></p>
+        </div>
+    </div>
+    <div id="appBox" style="display: none;">
+        <div class="nav">
+            <button class="nav-btn active" onclick="switchTab('phone', event)">📞 Phone</button>
+            <button class="nav-btn" onclick="switchTab('meetings', event)">🤝 Meetings</button>
+            <button class="nav-btn" onclick="switchTab('meds', event)">💊 Meds</button>
+            <button class="nav-btn" onclick="switchTab('chat', event)">💬 Chat</button>
+            <button class="nav-btn" onclick="switchTab('notices', event)">📢 Notices</button>
+            <button class="nav-btn" onclick="switchTab('history', event)">📋 History</button>
+            <button class="nav-btn" id="adminTabBtn" style="display:none;" onclick="switchTab('admin', event)">⚙️ Admin</button>
+        </div>
+
+        <div id="tab-phone" class="tab-content active">
+            <div class="display" id="screen">---</div>
+            <div class="keypad">
+                <button class="k-btn" onclick="press('1')">1</button>
+                <button class="k-btn" onclick="press('2')">2</button>
+                <button class="k-btn" onclick="press('3')">3</button>
+                <button class="k-btn" onclick="press('4')">4</button>
+                <button class="k-btn" onclick="press('5')">5</button>
+                <button class="k-btn" onclick="press('6')">6</button>
+                <button class="k-btn" onclick="press('7')">7</button>
+                <button class="k-btn" onclick="press('8')">8</button>
+                <button class="k-btn" onclick="press('9')">9</button>
+                <button class="k-btn" style="background: #ea580c;" onclick="back()">⌫</button>
+                <button class="k-btn" onclick="press('0')">0</button>
+                <button class="k-btn" style="background: #dc2626;" onclick="resetScreen()">C</button>
+            </div>
+            <button class="btn btn-call" onclick="makeCall()">📞 Call Extension</button>
+            <button class="btn btn-end" onclick="endCall()">🔴 End Call</button>
+            <button class="btn" style="background: #ef4444; margin-top: 15px;" onclick="openEm()">🚨 EMERGENCY BROADCAST</button>
+            <div style="margin-top: 12px;">
+                <h4 style="font-size: 12px; margin: 0 0 4px 0; color: #94a3b8;">Quick Directory:</h4>
+                <div id="staffDirectory" style="max-height: 100px; overflow-y: auto;"></div>
+            </div>
+        </div>
+
+        <div id="tab-meetings" class="tab-content">
+            <h3 style="font-size: 13px; margin: 0 0 6px 0;">Audio Meeting Rooms</h3>
+            <div id="createMeetingBox" style="margin-bottom: 10px;">
+                <input type="text" id="meetingTitle" placeholder="Meeting Topic/Room Name">
+                <button class="btn" style="padding: 6px;" onclick="createMeeting()">Start Meeting</button>
+            </div>
+            <div id="meetingsList" style="max-height: 180px; overflow-y: auto;"></div>
+            <div id="activeMeetingRoom" style="display:none; background:#0f172a; padding:10px; border-radius:8px; text-align:center;">
+                <h4 id="roomTitle" style="color:#38bdf8; margin:0 0 8px 0;"></h4>
+                <p style="font-size:11px; color:#4ade80;">Connected in Meeting Audio</p>
+                <button class="btn btn-end" onclick="leaveMeeting()">Leave Room</button>
+            </div>
+        </div>
+
+        <div id="tab-meds" class="tab-content">
+            <h3 style="font-size: 13px; margin: 0 0 6px 0;">Medicine Requisition</h3>
+            <input type="text" id="medName" placeholder="Medicine Name">
+            <input type="text" id="medQty" placeholder="Quantity (e.g. 2 Boxes)">
+            <button class="btn" style="padding: 6px;" onclick="addMedCart()">Add to Cart</button>
+            <div id="cartList" style="background:#0f172a; padding:8px; border-radius:6px; margin:8px 0; font-size:11px; min-height:40px;">Cart is empty</div>
+            <button class="btn btn-call" style="padding: 6px;" onclick="submitAllMeds()">Submit Requisition</button>
+            <hr style="border-color:#334155; margin:10px 0;">
+            <h4 style="font-size: 11px; margin: 0 0 4px 0; color:#94a3b8;">Previous Requests:</h4>
+            <div id="medList" style="max-height: 100px; overflow-y: auto;"></div>
+        </div>
+
+        <div id="tab-chat" class="tab-content">
+            <h3 style="font-size: 13px; margin: 0 0 6px 0;">Department Chat</h3>
+            <div id="chatMessages" style="height: 160px; background: #0f172a; padding: 8px; border-radius: 6px; overflow-y: auto; font-size: 11px; margin-bottom: 6px; border:1px solid #334155;"></div>
+            <div style="display: flex; gap: 4px;">
+                <input type="text" id="chatInput" placeholder="Type message..." style="margin:0;">
+                <button class="btn" style="width: 70px; margin:0; padding:4px;" onclick="sendMsg()">Send</button>
+            </div>
+        </div>
+
+        <div id="tab-notices" class="tab-content">
+            <h3 style="font-size: 13px; margin: 0 0 6px 0;">Hospital Notices</h3>
+            <div id="createNoticeBox" style="display:none; margin-bottom: 10px;">
+                <input type="text" id="noticeTitle" placeholder="Notice Title">
+                <textarea id="noticeContent" placeholder="Notice details..." style="height:50px;"></textarea>
+                <button class="btn" style="padding: 6px;" onclick="pubNotice()">Publish Notice</button>
+            </div>
+            <div id="noticeList" style="max-height: 180px; overflow-y: auto;"></div>
+        </div>
+
+        <div id="tab-history" class="tab-content">
+            <h3 style="font-size: 13px; margin: 0 0 6px 0;">Call History</h3>
+            <div id="callHistoryList" style="max-height: 180px; overflow-y: auto;"></div>
+            <button class="btn" style="background:#334155; margin-top:8px; padding:6px;" onclick="markAtt()">Check In (Attendance)</button>
+            <button class="btn" style="background:#334155; margin-top:4px; padding:6px;" onclick="viewAtt()">View Today's Attendance</button>
+        </div>
+
+        <div id="tab-admin" class="tab-content">
+            <h3 style="font-size: 13px; margin: 0 0 6px 0; color:#ef4444;">Admin Panel - Staff Control</h3>
+            <div id="adminStaffList" style="max-height: 180px; overflow-y: auto;"></div>
+        </div>
+    </div>
+</div>
+
+<div id="customModal" class="modal-overlay">
+    <div class="modal-card">
+        <h3 id="modalTitle" style="color: #38bdf8; margin-top: 0; font-size: 14px;">Alert</h3>
+        <div id="modalBody" style="font-size: 12px; margin-bottom: 10px;"></div>
+        <button class="btn btn-call" style="padding: 6px; font-size: 12px;" onclick="closeModal()">OK</button>
+    </div>
+</div>
+
+<div id="emergencyModal" class="modal-overlay">
+    <div class="modal-card" style="border-color: #ef4444;">
+        <h3 style="color: #ef4444; margin-top: 0; font-size: 14px;">🚨 Emergency Broadcast</h3>
+        <div style="font-size: 11px; margin-bottom: 6px;">
+            <input type="text" id="emLoc" placeholder="Location (e.g. ICU Bed 2)">
+            <input type="text" id="emNote" placeholder="Emergency Note / Details">
+        </div>
+        <div style="display: flex; gap: 6px;">
+            <button class="btn btn-end" style="flex: 1; padding: 6px; font-size: 12px;" onclick="closeEm()">Cancel</button>
+            <button class="btn" style="flex: 1; background: #ef4444; padding: 6px; font-size: 12px;" onclick="sendEm()">TRIGGER</button>
+        </div>
+    </div>
+</div>
+
+<div id="incomingModal" class="modal-overlay">
+    <div class="modal-card">
+        <h3 style="color: #38bdf8; margin-top: 0; font-size: 14px;">🔔 Incoming Call</h3>
+        <p id="callerText" style="font-size: 12px;">Calling...</p>
+        <div style="display: flex; gap: 6px;">
+            <button class="btn btn-end" style="flex: 1; padding: 6px; font-size: 12px;" onclick="rejCall()">Reject</button>
+            <button class="btn btn-call" style="flex: 1; padding: 6px; font-size: 12px;" onclick="accCall()">Accept</button>
+        </div>
+    </div>
+</div>
+
+<audio id="remoteAudio" autoplay></audio>
+<script>
+    const socket = io();
+    let peer = null, curCall = null, incCall = null, localStream = null, user = null;
+    let medCart = [];
+
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({ audio: true }).then(s => localStream = s).catch(e => console.log("Mic disabled"));
+    }
+
+    function switchTab(t, ev) {
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        if(ev) ev.target.classList.add('active');
+        document.getElementById('tab-' + t).classList.add('active');
+        if(t === 'meds') loadMeds();
+        if(t === 'meetings') loadMeetings();
+        if(t === 'notices') loadNotices();
+        if(t === 'history') loadHistory();
+        if(t === 'admin') loadAdminStaff();
+    }
+
+    function toggleForm(type) {
+        document.getElementById('loginForm').style.display = type === 'reg' ? 'none' : 'block';
+        document.getElementById('registerForm').style.display = type === 'reg' ? 'block' : 'none';
+    }
+
+    function alertMsg(title, msg) {
+        document.getElementById('modalTitle').innerText = title;
+        document.getElementById('modalBody').innerHTML = `<p style="font-size:12px; margin:0;">${msg}</p>`;
+        document.getElementById('customModal').style.display = 'flex';
+    }
+    function closeModal() { document.getElementById('customModal').style.display = 'none'; }
+    function openEm() { document.getElementById('emergencyModal').style.display = 'flex'; }
+    function closeEm() { document.getElementById('emergencyModal').style.display = 'none'; }
+
+    async function login() {
+        const username = document.getElementById('loginUser').value.trim();
+        const password = document.getElementById('loginPass').value.trim();
+        if(!username || !password) return alertMsg("Error", "Enter credentials!");
+
+        try {
+            const res = await fetch('/api/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({username, password}) });
+            const data = await res.json();
+            if(res.ok) {
+                user = data.user;
+                document.getElementById('authContainer').style.display = 'none';
+                document.getElementById('appBox').style.display = 'block';
+                document.getElementById('statusBox').innerText = `Online: ${user.name} - Ext: ${user.extension}`;
+                if(user.extension === '100' || user.role === 'Admin') {
+                    document.getElementById('adminTabBtn').style.display = 'block';
+                    document.getElementById('createNoticeBox').style.display = 'block';
+                }
+                
+                try {
+                    if (typeof Peer !== 'undefined') {
+                        peer = new Peer('dl-' + user.extension);
+                        peer.on('call', call => { 
+                            incCall = call; 
+                            document.getElementById('callerText').innerText = `Ext ${call.peer.replace('dl-', '')} calling...`; 
+                            document.getElementById('incomingModal').style.display = 'flex'; 
+                        });
+                    }
+                } catch(err) {}
+
+                socket.emit('register-extension', user.extension);
+                loadDirectory(); loadMsgs(); loadMeetings();
+            } else { alertMsg("Error", data.error); }
+        } catch(e) { alertMsg("Error", "Server Connection Failed!"); }
+    }
+
+    async function registerUser() {
+        const name = document.getElementById('regName').value.trim();
+        const department = document.getElementById('regDept').value.trim();
+        const extension = document.getElementById('regExt').value.trim();
+        const username = document.getElementById('regUser').value.trim();
+        const password = document.getElementById('regPass').value.trim();
+        if(!name || !extension || !username || !password) return alertMsg("Error", "Fill required fields!");
+
+        try {
+            const res = await fetch('/api/register', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name, department, extension, username, password}) });
+            const data = await res.json();
+            if(res.ok) { alertMsg("Success", data.message); toggleForm('login'); } else alertMsg("Error", data.error);
+        } catch(e) { alertMsg("Error", "Registration Failed!"); }
+    }
+
+    function press(n) { let s = document.getElementById('screen'); if(s.innerText === '---') s.innerText = ''; s.innerText += n; }
+    function back() { let s = document.getElementById('screen'); if(s.innerText !== '---') { s.innerText = s.innerText.slice(0, -1); if(!s.innerText) s.innerText = '---'; } }
+    function endCall() { if(curCall) { curCall.close(); curCall = null; } resetScreen(); }
+    function quick(ext) { document.getElementById('screen').innerText = ext; makeCall(); }
+
+    function makeCall() {
+        let target = document.getElementById('screen').innerText;
+        if(target === '---' || !target) return alertMsg("Error", "Dial Extension!");
+        document.getElementById('statusBox').innerText = "Calling Ext " + target + "...";
+        if(peer) {
+            curCall = peer.call('dl-' + target, localStream);
+            curCall.on('stream', s => { document.getElementById('remoteAudio').srcObject = s; document.getElementById('statusBox').innerText = "Connected: Ext " + target; logCall(user.extension, target, 'Answered'); });
+            curCall.on('close', resetScreen);
+        }
+    }
+    function accCall() {
+        document.getElementById('incomingModal').style.display = 'none';
+        if(incCall) { incCall.answer(localStream); curCall = incCall; document.getElementById('statusBox').innerText = "In Call"; curCall.on('stream', s => document.getElementById('remoteAudio').srcObject = s); curCall.on('close', resetScreen); }
+    }
+    function rejCall() { document.getElementById('incomingModal').style.display = 'none'; if(incCall) { logCall(incCall.peer.replace('dl-', ''), user.extension, 'Rejected'); incCall.close(); incCall = null; } resetScreen(); }
+    function resetScreen() { document.getElementById('statusBox').innerText = `Online: ${user.name} - Ext: ${user.extension}`; document.getElementById('screen').innerText = '---'; }
+    async function logCall(c, r, st) { await fetch('/api/calls/log', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({callerExt: c, receiverExt: r, status: st}) }); }
+
+    async function sendEm() {
+        await fetch('/api/emergency/trigger', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({sender: user.name, extension: user.extension, location: document.getElementById('emLoc').value, note: document.getElementById('emNote').value}) });
+        closeEm(); alertMsg("Emergency", "Alert Triggered!");
+    }
+
+    async function loadMeetings() {
+        try {
+            const res = await fetch('/api/meetings');
+            const meetings = await res.json();
+            const box = document.getElementById('meetingsList');
+            let html = meetings.length ? '' : '<p style="font-size:11px; color:#94a3b8;">No active meetings.</p>';
+            meetings.forEach(m => {
+                html += `<div class="list-item"><span><b>${m.title}</b><br><small>Host: ${m.host}</small></span><button class="dir-btn" onclick="joinMeeting('${m.id}', '${m.title}')">Join</button></div>`;
+            });
+            box.innerHTML = html;
+        } catch(e) {}
+    }
+
+    async function createMeeting() {
+        const title = document.getElementById('meetingTitle').value.trim();
+        if(!title) return alertMsg("Error", "Enter meeting title!");
+        const res = await fetch('/api/meetings/create', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({title, host: user.name, extension: user.extension})
+        });
+        const data = await res.json();
+        if(res.ok) {
+            document.getElementById('meetingTitle').value = '';
+            loadMeetings();
+            alertMsg("Meeting", "Meeting started successfully!");
+        }
+    }
+
+    function joinMeeting(id, title) {
+        document.getElementById('meetingsList').style.display = 'none';
+        document.getElementById('createMeetingBox').style.display = 'none';
+        document.getElementById('activeMeetingRoom').style.display = 'block';
+        document.getElementById('roomTitle').innerText = title || ("Meeting Room #" + id);
+    }
+
+    function leaveMeeting() {
+        document.getElementById('activeMeetingRoom').style.display = 'none';
+        document.getElementById('meetingsList').style.display = 'block';
+        document.getElementById('createMeetingBox').style.display = 'block';
+        loadMeetings();
+    }
+
+    async function loadMeds() {
+        const res = await fetch('/api/medicine-requests'); const list = await res.json();
+        let html = list.length ? '' : '<p style="font-size:11px; color:#94a3b8;">No requests.</p>';
+        list.forEach(m => html += `<div class="list-item"><span><b>${m.item}</b> (${m.qty})<br><small>${m.sender}</small></span><span style="color:#fbbf24;">${m.status}</span></div>`);
+        document.getElementById('medList').innerHTML = html;
+    }
+
+    function addMedCart() {
+        const item = document.getElementById('medName').value.trim();
+        const qty = document.getElementById('medQty').value.trim();
+        if(!item || !qty) return alertMsg("Error", "Enter medicine name & qty!");
+        medCart.push({item, qty});
+        document.getElementById('medName').value = '';
+        document.getElementById('medQty').value = '';
+        updateCartUI();
+    }
+
+    function updateCartUI() {
+        const box = document.getElementById('cartList');
+        if(medCart.length === 0) { box.innerHTML = 'Cart is empty'; return; }
+        let html = '';
+        medCart.forEach((m) => { html += `<div>• ${m.item} (${m.qty})</div>`; });
+        box.innerHTML = html;
+    }
+
+    async function submitAllMeds() {
+        if(medCart.length === 0) return alertMsg("Error", "Cart is empty!");
+        for(let m of medCart) {
+            await fetch('/api/medicine-requests', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({item: m.item, qty: m.qty, sender: user.name, extension: user.extension}) });
+        }
+        medCart = [];
+        updateCartUI();
+        loadMeds();
+        alertMsg("Success", "All medicine requests submitted!");
+    }
+
+    async function loadHistory() {
+        const res = await fetch('/api/calls/history/' + user.extension); const h = await res.json();
+        let html = h.length ? '' : '<p style="font-size:11px; color:#94a3b8;">No history.</p>';
+        h.forEach(c => html += `<div class="list-item"><span>${c.callerExt === user.extension ? '↗ To' : '↙ From'} Ext ${c.callerExt === user.extension ? c.receiverExt : c.callerExt}</span><span style="color:${c.status==='Answered'?'#4ade80':'#ef4444'}">${c.status}</span></div>`);
+        document.getElementById('callHistoryList').innerHTML = html;
+    }
+    async function loadNotices() {
+        const res = await fetch('/api/notices'); const n = await res.json();
+        let html = n.length ? '' : '<p style="font-size:11px; color:#94a3b8;">No notices.</p>';
+        n.forEach(x => html += `<div class="list-item" style="flex-direction:column; align-items:flex-start;"><b style="color:#38bdf8;">${x.title}</b><span style="font-size:10px;">${x.content}</span></div>`);
+        document.getElementById('noticeList').innerHTML = html;
+    }
+    async function pubNotice() {
+        await fetch('/api/notices', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({title: document.getElementById('noticeTitle').value, content: document.getElementById('noticeContent').value, sender: user.name}) });
+        document.getElementById('noticeTitle').value = ''; document.getElementById('noticeContent').value = ''; loadNotices();
+    }
+    async function loadAdminStaff() {
+        const res = await fetch('/api/staff'); const s = await res.json();
+        let html = '';
+        s.forEach(x => html += `<div class="list-item"><span>Ext ${x.extension} - ${x.name}</span>${x.extension !== '100' ? `<button style="background:#dc2626; color:white; border:none; padding:4px 6px; border-radius:4px;" onclick="remStaff(${x.id})">Del</button>` : ''}</div>`);
+        document.getElementById('adminStaffList').innerHTML = html;
+    }
+    async function remStaff(id) {
+        if(confirm("Remove staff?")) { await fetch('/api/admin/remove-staff', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({userId: id}) }); loadAdminStaff(); }
+    }
+    async function loadDirectory() {
+        const res = await fetch('/api/staff'); const s = await res.json();
+        const box = document.getElementById('staffDirectory');
+        box.innerHTML = '';
+        s.forEach(x => { if(x.extension !== user.extension) box.innerHTML += `<button class="dir-btn" onclick="quick('${x.extension}')">${x.extension} - ${x.name}</button>`; });
+    }
+    async function markAtt() {
+        const res = await fetch('/api/attendance', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name: user.name, extension: user.extension, department: user.department}) });
+        const d = await res.json(); alertMsg("Attendance", d.message || d.error);
+    }
+    async function viewAtt() {
+        const res = await fetch('/api/attendance-list'); const list = await res.json();
+        let html = list.length ? '' : '<p style="font-size:11px;">No records today.</p>';
+        list.forEach(a => html += `<div class="list-item"><span>Ext ${a.extension} - ${a.name}</span><span style="color:#4ade80;">${a.time}</span></div>`);
+        alertMsg("Attendance Sheet", html);
+    }
+    async function loadMsgs() {
+        const res = await fetch('/api/messages'); const msgs = await res.json();
+        const box = document.getElementById('chatMessages');
+        box.innerHTML = '';
+        msgs.forEach(m => box.innerHTML += `<div><b>${m.sender}:</b> ${m.text}</div>`);
+        box.scrollTop = box.scrollHeight;
+    }
+    async function sendMsg() {
+        const input = document.getElementById('chatInput');
+        if(!input.value.trim()) return;
+        await fetch('/api/messages', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({sender: user.name, extension: user.extension, text: input.value.trim()}) });
+        input.value = '';
+    }
+    socket.on('new-message', loadMsgs);
+    socket.on('new-notice', loadNotices);
+    socket.on('new-meeting-alert', m => {
+        alertMsg("🔔 New Meeting", `<b>${m.title}</b> started by ${m.host}`);
+        if(document.getElementById('tab-meetings').classList.contains('active')) loadMeetings();
+    });
+    socket.on('hospital-emergency', a => alertMsg("🚨 EMERGENCY", `${a.location}<br>${a.note}<br><small>By: ${a.sender}</small>`));
+</script>
+</body>
+</html>

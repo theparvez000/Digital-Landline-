@@ -1,0 +1,67 @@
+{
+  "staff": [
+    {
+      "id": 1,
+      "name": "Admin Officer",
+      "department": "Administration",
+      "extension": "100",
+      "username": "admin",
+      "password": "admin123",
+      "role": "Admin"
+    },
+    {
+      "id": 2,
+      "name": "Md Parvez",
+      "department": "Emergency",
+      "extension": "101",
+      "username": "parvez",
+      "password": "123",
+      "role": "Staff"
+    },
+    {
+      "id": 1792366806595,
+      "name": "Ot",
+      "department": "Ot",
+      "extension": "104",
+      "username": "Ot",
+      "password": "0987",
+      "role": "Staff"
+    }
+  ],
+  "messages": [],
+  "notices": [
+    {
+      "id": 1792366916061,
+      "title": "Hudai",
+      "content": "Hudai",
+      "sender": "Admin Officer",
+      "time": "10/19/2026"
+    }
+  ],
+  "meetings": [],
+  "medicineRequests": [],
+  "callHistory": [
+    {
+      "callerExt": "100",
+      "receiverExt": "104",
+      "status": "Answered",
+      "time": "5:40:39 AM"
+    },
+    {
+      "callerExt": "100",
+      "receiverExt": "ALL",
+      "status": "EMERGENCY",
+      "time": "5:41:34 AM"
+    }
+  ],
+  "attendance": [
+    {
+      "id": 1792419090853,
+      "name": "Ot",
+      "extension": "104",
+      "department": "Ot",
+      "date": "10/19/2026",
+      "time": "8:11:30 PM"
+    }
+  ]
+}
