@@ -54,6 +54,38 @@
     }
   });
 </script>
+
+<script>
+  window.addEventListener("DOMContentLoaded", () => {
+    const saved = localStorage.getItem("digital_landline_user");
+    if (saved) {
+      try {
+        const user = JSON.parse(saved);
+        if (typeof currentUser !== "undefined") currentUser = user;
+        // Trigger dashboard display
+        const loginCard = document.getElementById("loginCard") || document.querySelector(".card");
+        const appCard = document.getElementById("appCard") || document.getElementById("dashboard");
+        if (loginCard) loginCard.style.display = "none";
+        if (appCard) appCard.style.display = "block";
+      } catch(e) {}
+    }
+  });
+
+  // Save session when user logs in successfully
+  const origFetch = window.fetch;
+  window.fetch = async function(...args) {
+    const res = await origFetch.apply(this, args);
+    if (args[0] && args[0].includes("/api/login") && res.ok) {
+      const clone = res.clone();
+      const data = await clone.json();
+      if (data && data.user) {
+        localStorage.setItem("digital_landline_user", JSON.stringify(data.user));
+      }
+    }
+    return res;
+  };
+</script>
+
 </head>
 <body>
 
