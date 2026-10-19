@@ -98,6 +98,28 @@
     }
   });
 </script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const _supabase = window.supabase.createClient(
+    "https://imhdrhoupbjnyytouxsx.supabase.co",
+    "sb_publishable_e5hTKPmcY2K1-pGAAIod-g_KOGBj9Dd"
+  );
+
+  document.addEventListener("DOMContentLoaded", async () => {
+    const savedUser = localStorage.getItem("digital_landline_user");
+    if (savedUser) {
+      try {
+        window.currentUser = JSON.parse(savedUser);
+        const loginCard = document.getElementById("loginCard") || document.querySelector(".card");
+        const appCard = document.getElementById("appCard") || document.getElementById("dashboard");
+        if (loginCard) loginCard.style.display = "none";
+        if (appCard) appCard.style.display = "block";
+      } catch(e) {}
+    }
+  });
+</script>
+
 </head>
 <body>
 
