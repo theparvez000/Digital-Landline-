@@ -28,7 +28,18 @@
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 999; }
         .modal-card { background: #1e293b; width: 90%; max-width: 320px; padding: 20px; border-radius: 12px; border: 1px solid #38bdf8; }
     </style>
-</head>
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const savedUser = localStorage.getItem("currentUser");
+      if (savedUser) {
+        try {
+          currentUser = JSON.parse(savedUser);
+          if (typeof renderApp === "function") renderApp();
+        } catch(e) { localStorage.removeItem("currentUser"); }
+      }
+    });
+    const origLogin = typeof login === "function" ? login : null;
+  </head>
 <body>
 
 <div class="card">
