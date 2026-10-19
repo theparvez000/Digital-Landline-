@@ -51,6 +51,18 @@
     }
   });
 </script>
+<script>
+  window.addEventListener("DOMContentLoaded", () => {
+    const saved = localStorage.getItem("digital_landline_user");
+    if (saved) {
+      try {
+        window.currentUser = JSON.parse(saved);
+        if (typeof renderApp === "function") renderApp();
+        else if (typeof showDashboard === "function") showDashboard();
+      } catch(e) {}
+    }
+  });
+</script>
 </head>
 <body>
 
