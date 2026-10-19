@@ -39,7 +39,19 @@
       }
     });
     const origLogin = typeof login === "function" ? login : null;
-  </head>
+  <script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const saved = localStorage.getItem("currentUser");
+    if (saved) {
+      try {
+        currentUser = JSON.parse(saved);
+        if (typeof renderApp === "function") renderApp();
+        else if (typeof showDashboard === "function") showDashboard();
+      } catch(e) {}
+    }
+  });
+</script>
+</head>
 <body>
 
 <div class="card">
